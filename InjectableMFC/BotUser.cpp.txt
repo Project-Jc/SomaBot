@@ -1,0 +1,545 @@
+﻿#include "stdafx.h"
+
+#include "UserManagerHook.h"
+#include "BotUser.h"
+
+BotUser BotUsr;
+
+BotUser::BotUser() {
+	for (; hMod_Soma == NULL; Sleep(10)) {
+		hMod_Soma = GetModuleHandle(NULL);
+	}
+
+	// Bot defaults
+	MaxTargetSearchRange = 16;
+
+	pHPThreshold = 60;
+	pMPThreshold = 20;
+
+	bHuntWP = true;
+	bPathWP = false;
+
+	WarpEnabled = true;
+
+	pkCountLimit = 4;
+	deathCountLimit = 2;
+	// End defaults
+
+	// For testing
+	TargetList.push_back("BRIC");
+
+	// Console output booleans
+	showHasTarget = true; showDead = true; showLooting = true;
+
+	char result[MAX_PATH];
+	string szExePath = string(result, GetModuleFileName(NULL, result, MAX_PATH));
+
+	CreateDirectory(CString(szExePath.c_str()) + "\\" + "Juane", NULL);
+	//cout << szExePath << endl;
+}
+
+BotUser::~BotUser() {
+}
+
+DWORD WINAPI BotUser::BotProcess(LPVOID lpParam) {
+	for (;;) {
+		Sleep(100);
+		if (GetAsyncKeyState(VK_INSERT)) {
+			if (!BotUsr.BotRunning) {
+				if (BotUsr.Init()) {
+					BotUsr.BotRunning = TRUE;
+					Print("Bot started.");
+					Print("%d\r\n", sizeof(bool));
+				}
+			} else {
+				BotUsr.BotRunning = FALSE;
+				Print("Bot ended.");
+			}
+		} else if (GetAsyncKeyState(VK_END)) {
+			//cout << "TargetUid: " << std:: dec << BotUsr.cBotUser->TargetUid << "\t" << std::hex << &BotUsr.cBotUser->TargetUid << endl;
+			cout << "Dead: " << std::dec << BotUsr.cBotUser->Dead << std::endl;
+		} else if (GetAsyncKeyState(VK_HOME)) {
+			if (!BotUsr.BotRunning) {
+				if (BotUsr.UserReady()) {
+					if (BotUsr.bHuntWP) {
+						BotUsr.vHuntingWP.push_back(BotUsr.cBotUser->CellPos);
+						cout << "Added hunting waypoint:\t" << BotUsr.vHuntingWP.at(BotUsr.vHuntingWP.size() - 1).x << "," << BotUsr.vHuntingWP.at(BotUsr.vHuntingWP.size() - 1).y << endl;
+					}
+				}
+			}
+		}
+		if (BotUsr.BotRunning) {
+			// Health checks
+			if (BotUsr.HealthLow()) {
+				if (BotUsr.HasItem(NULL, "HP")) {
+					// Use potion
+				} else {
+					// Warp
+				}
+			}
+			// Check for PK
+			if (BotUsr.IsBeingPKD) {
+				BotUsr.Print("Player is being PKD.");
+				BotUsr.WarpRequired = TRUE;
+
+				// Take a screenshot of the PK event
+			}
+			// Has the player died and is waiting to be revived?
+			if (BotUsr.AwaitingRevival) {
+				BotUsr.Print("Player has died.");
+				if (BotUsr.cBotUser->Dead) {
+					// Screenshot the death event
+					// Send revival
+				} else {
+					BotUsr.dcIncrement();
+				}
+				continue;
+			}
+			// Check for loot
+			if (BotUsr.LootEnabled) {
+				if (BotUsr.LootRequired) {
+					BotUsr.Print("Looting items.");
+					if (BotUsr.GetCellRange(BotUsr.LootPoints.at(BotUsr.cLootItem)) <= 4) {
+						BotUsr.LootItem();
+					}
+					else {
+						// Move within range of loot point
+					}
+					continue;
+				}
+			}
+			// Is a warp required?
+			if (BotUsr.WarpEnabled) {
+				if (BotUsr.WarpRequired) {
+					if (BotUsr.WarpInProcess) {
+						if (BotUsr.WarpFinished) {
+							BotUsr.Print("Warp done.");
+							if (BotUsr.IsBeingPKD) {
+								BotUsr.IsBeingPKD = FALSE;
+								BotUsr.pkCount++;
+								if (BotUsr.pkCount >= BotUsr.pkCountLimit) {
+									BotUsr.Print("PK limit [%d] reached... Quitting.", BotUsr.pkCountLimit);
+									// Logout and quit
+								}
+							}
+						}
+					} else {
+						if (BotUsr.HasItem("Town Portal Scroll", NULL)) {
+							BotUsr.Print("Sending warp... TP Index: %d", BotUsr.tpIndex);
+							// Use TP
+							Sleep(500);
+						} else {
+							// Logout and quit
+						}
+					}
+					continue;
+				}
+			}
+			if (BotUsr.BotHasTarget()) {
+				if (BotUsr.BotAttacking) {
+					if (BotUsr.TargetDead()) {
+						BotUsr.ResetTarget();
+						BotUsr.FindNearestWP();
+						// Check for loot
+
+					} else {
+						// Send attack
+					}
+
+				} else {
+					BotUsr.HandleMoveMnt();
+				}
+			} else {
+				if (!BotUsr.TargetFound()) {
+					BotUsr.HandleMoveMnt();
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+BOOL BotUser::Init() {
+	if (!UserReady())
+		return FALSE;
+
+	ResetTarget();
+
+	Print("Bot running!");
+
+	return TRUE;
+}
+
+void BotUser::dcIncrement() {
+	deathCount++;
+	AwaitingRevival = FALSE;
+	showDead = TRUE;
+	if (deathCount >= deathCountLimit) {
+		BotUsr.Print("Death limit [%d] reached... Warping.", deathCountLimit);
+		deathCount = 0;
+		WarpRequired = TRUE;
+	}
+}
+
+BOOL BotUser::HealthLow() {
+	if (PottingHP) {
+		if (cBotUser->HealthAbovePercent(80)) {
+			PottingHP = FALSE;
+			return PottingHP;
+		}
+		return TRUE;
+	} else {
+		if (!cBotUser->HealthAbovePercent(pHPThreshold)) {
+			PottingHP = TRUE;
+			return PottingHP;
+		}
+	}
+	return FALSE;
+}
+
+BOOL BotUser::ManaLow() {
+	return FALSE;
+}
+
+BOOL BotUser::HasItem(CString iName, CString HpMp) {
+	if (iName != "") {
+		if (iName == "Town Portal Scroll") {
+			// Need to find memory location of item names
+		}
+	}
+	if (HpMp != "") {
+		if (HpMp == "HP") {
+			for (int i = 10; i < INV_COUNT; i++) {
+				if (cBotUser->Inventory[i].HP > 0) {
+					pHPIndex = i;
+					return TRUE;
+				}
+			}
+		} else {
+			for (int i = 10; i < INV_COUNT; i++) {
+				if (cBotUser->Inventory[i].MP > 0) {
+					pMPIndex = i;
+					return TRUE;
+				}
+			}
+		}
+	}
+	return FALSE;
+}
+
+BOOL BotUser::UserReady() {
+	if (BotUsr.cBotUser != NULL) {
+		return TRUE;
+	} else {
+		PREPARE_USERMANAGER_CALL();
+		BotUsr.cBotUser = ((USER *) UserManager::GetMe());
+		if (BotUsr.cBotUser != NULL) {
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+BOOL BotUser::BotHasTarget() {
+	if (cBotTarget == NULL || BotTargetUid == -1)
+		return FALSE;
+	return TRUE;
+}
+
+BOOL BotUser::TargetFound() {
+
+	BotUsr.Print("Searching for target...");
+
+	vector<USER *> FoundTargets;
+
+	USER **pTarget = (USER **) ResolvePointer((DWORD) hMod_Soma + 0x2E6710, 1, 0x278);
+
+	for (int i = 0; i < 30; i++) {
+		if (TargetIsValid(pTarget[i], -1, FALSE)) {
+			bool CorrectMonster = false;
+
+			if (TargetList.size() > 0) {
+				for (size_t n = 0; n < TargetList.size(); n++) {
+					if (TargetList.at(n) == pTarget[i]->UserName.GetString()) {
+						CorrectMonster = true;
+					}
+				}
+			} else {
+				CorrectMonster = true;		// No speciic target set so hunt every monster
+			}
+			if (pTarget[i]->IsCharAttack()) {
+				if (pTarget[i]->TargetUid == cBotUser->Uid) {
+					if (!CorrectMonster) {
+						if (this->GetCellRange(pTarget[i]->CellPos) <= 2) {
+							if (!BotMoving) {
+								BotTargetUid = pTarget[i]->Uid;
+								cBotTarget = pTarget[i];
+								return TRUE;
+							}
+						}
+					}
+				} else {
+					continue;
+				}
+			} else {
+				if (!CorrectMonster) {
+					continue;
+				}
+			}
+			Print("\tValid target");
+			FoundTargets.push_back((USER *) pTarget[i]);
+		}
+	}
+	if (FoundTargets.size() > 0) {
+		USER *nTarget;
+		// For debugging
+		Print("\nTargets found: %d", FoundTargets.size());
+		for (size_t i = 0; i < FoundTargets.size(); i++) {
+			nTarget = FoundTargets.at(i);
+			Print("\t%X\t%s", nTarget, nTarget->UserName.GetString());
+		}
+		// End
+		for (int j = 0; j <= MaxTargetSearchRange; j++) {
+			for (size_t i = 0; i < FoundTargets.size(); i++) {
+				nTarget = FoundTargets.at(i);
+				if (GetCellRange(nTarget->CellPos) <= j) {
+					BotTargetUid = nTarget->Uid;
+					cBotTarget = nTarget;
+					Print("\nNearest target: %X\t%s", cBotTarget, cBotTarget->UserName);
+					BotMoving = FALSE;	// Have to reset this as we may have found a target whilst moving around
+					return TRUE;
+				}
+			}
+		}
+	}
+	return FALSE;
+}
+
+BOOL BotUser::TargetDead() {
+	if (cBotTarget == NULL || cBotTarget->Dead)
+		return TRUE;
+	return FALSE;
+}
+
+void BotUser::ResetTarget() {
+	BotTargetUid = -1;
+	cBotTarget = NULL;
+}
+
+BOOL BotUser::TargetIsValid(USER *pTarget, int pRange, BOOL checkWeaken) {
+	if (pTarget == NULL)
+		return FALSE;
+
+	Print("\n%X\t%s\n\tUid:\t\t%d\n\tDead:\t\t%d\n\tAttack:\t\t%d\n\tDeadEnable:\t%d", pTarget, pTarget->UserName.GetString(), pTarget->Uid, pTarget->Dead, pTarget->IsCharAttack(), pTarget->CanDie);
+
+	if (pTarget->Dead)
+		return FALSE;
+	if (pTarget->Uid == cBotUser->Uid)
+		return FALSE;
+	if (pTarget->Uid < 10000)
+		return FALSE;
+	if (!pTarget->CanDie) 	// Target must be capable of dying to be valid (NPCs show DeadEnable of 0)
+		return FALSE;
+	if (pRange != -1) {
+		if (GetCellRange(pTarget->CellPos) > pRange) {
+			return FALSE;
+		}
+	}
+	if (checkWeaken) {
+		if (pTarget->Weakened) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+int BotUser::GetCellRange(CPoint CellPos) {
+	return (abs(cBotUser->CellPos.x - CellPos.x) + abs(cBotUser->CellPos.y - CellPos.y));
+}
+
+int BotUser::GetCellRange(CPoint StartCellPos, CPoint FinalCellPos) {
+	return (abs(StartCellPos.x - FinalCellPos.x) + abs(StartCellPos.y - FinalCellPos.y));
+}
+
+DWORD BotUser::ResolvePointer(DWORD pAddress, int pLevels, ...) {
+	DWORD dwResult = pAddress;
+
+	va_list vaarg;
+	va_start(vaarg, pLevels);
+
+	for (int i = 0; i < pLevels; i++)
+		dwResult = *(DWORD*) (dwResult) +va_arg(vaarg, int);
+
+	va_end(vaarg);
+
+	return dwResult;
+}
+
+void BotUser::Test() {
+	// Display User data 
+	/*
+	if (cBotUser != NULL)
+	{
+	std::cout << "\n\tMe:\t\t" << std::hex << cBotUser << "\t" << std::endl;
+	std::cout << "\tName:\t\t" << std::dec << cBotUser->UserName.GetString() << "\t" << std::hex << &cBotUser->UserName << std::endl;
+	std::cout << "\tDead:\t\t" << std::dec << cBotUser->Dead << "\t" << std::hex << &cBotUser->Dead << std::endl;
+	std::cout << "\tMotion:\t\t" << std::dec << cBotUser->AnimationIndex << "\t" << std::hex << &cBotUser->AnimationIndex << std::endl;
+	std::cout << "\tCellPos:\t" << std::dec << cBotUser->CellPos.x << "," << cBotUser->CellPos.y << "\t" << std::hex << &cBotUser->CellPos << std::endl;
+	//std::cout << "\tWarping:\t\t" << std::dec << cBotUser->UserWarping << "\t" << std::hex << &cBotUser->UserWarping << std::endl;
+	std::cout << "\tUid:\t\t" << std::dec << cBotUser->Uid << "\t" << std::hex << &cBotUser->Uid << std::endl;
+	std::cout << "\tLevel:\t\t" << std::dec << cBotUser->Level << std::hex << "\t" << &cBotUser->Level << std::endl;
+	std::cout << "\tHP:\t\t" << std::dec << cBotUser->Cur_HP << "/" << cBotUser->Max_HP << std::hex << "\t" << &cBotUser->Cur_HP << std::endl;
+	std::cout << "\tMP:\t\t" << std::dec << cBotUser->Cur_MP << "/" << cBotUser->Max_MP << std::hex << "\t" << &cBotUser->Cur_MP << std::endl;
+	std::cout << "\tStam:\t\t" << std::dec << cBotUser->Cur_ST << "/" << cBotUser->Max_ST << std::hex << "\t" << &cBotUser->Cur_ST << std::endl;
+	std::cout << "\tWeight:\t\t" << std::dec << cBotUser->Cur_WT << "/" << cBotUser->Max_WT << std::hex << "\t" << &cBotUser->Cur_WT << std::endl;
+	std::cout << "\tBarr:\t\t" << std::dec << cBotUser->Barr << std::hex << "\t" << &cBotUser->Barr << std::endl;
+	//std::cout << "\tStance:\t" << std::dec << cBotUser->Stance << "\t" << std::hex << &cBotUser->Stance << std::endl;
+	std::cout << "\tStr:\t\t" << std::dec << cBotUser->Str << "\t" << std::hex << &cBotUser->Str << std::endl;
+	} */
+
+	// Display inventory data
+	/*
+	int Index = 46;
+	for (; Index < 50; Index++)
+	{
+	std::cout << "\n" << std::endl;
+	//std::cout << "\tIndex:\t" << std::dec << int(myUser->myInvData[Index].Index) << "\t" << std::hex << int(&myUser->myInvData[Index].Index) << std::endl;
+	std::cout << "\tType:\t" << std::dec << myUser->myInvData[Index].Type << "\t" << std::hex << &myUser->myInvData[Index].Type << std::endl;
+	std::cout << "\tGender:\t" << std::dec << int(myUser->myInvData[Index].Gender) << "\t" << std::hex << int(&myUser->myInvData[Index].Gender) << std::endl;
+	std::cout << "\tMin:\t" << std::dec << int(myUser->myInvData[Index].MinDamageOrDefence) << "\t" << std::hex << int(&myUser->myInvData[Index].MinDamageOrDefence) << std::endl;
+	std::cout << "\tMax:\t" << std::dec << int(myUser->myInvData[Index].MaxDamageOrDefence) << "\t" << std::hex << int(&myUser->myInvData[Index].MaxDamageOrDefence) << std::endl;
+	std::cout << "\tWeight:\t" << std::dec << int(myUser->myInvData[Index].Weight) << "\t" << std::hex << int(&myUser->myInvData[Index].Weight) << std::endl;
+
+	std::cout << "\tStr:\t" << std::dec << myUser->myInvData[Index].ReqStr << "\t" << std::hex << &myUser->myInvData[Index].ReqStr << std::endl;
+	std::cout << "\tInt:\t" << std::dec << myUser->myInvData[Index].ReqInt << "\t" << std::hex << &myUser->myInvData[Index].ReqInt << std::endl;
+	std::cout << "\tDex:\t" << std::dec << myUser->myInvData[Index].ReqDex << "\t" << std::hex << &myUser->myInvData[Index].ReqDex << std::endl;
+	std::cout << "\tSkill:\t" << std::dec << myUser->myInvData[Index].ReqSkill << "\t" << std::hex << &myUser->myInvData[Index].ReqSkill << std::endl;
+
+	std::cout << "\tDura:\t" << std::dec << myUser->myInvData[Index].Dura << "/" << myUser->myInvData[Index].MaxDura << "/" << myUser->myInvData[Index].OrgMaxDura << std::hex << "\t" << &myUser->myInvData[Index].Dura << std::endl;
+
+	std::cout << "\tMin:\t" << std::dec << int(myUser->myInvData[Index].MinMagicDamageOrDefence) << "\t" << std::hex << int(&myUser->myInvData[Index].MinMagicDamageOrDefence) << std::endl;
+	std::cout << "\tMax:\t" << std::dec << int(myUser->myInvData[Index].MaxMagicDamageOrDefence) << "\t" << std::hex << int(&myUser->myInvData[Index].MaxMagicDamageOrDefence) << std::endl;
+
+	std::cout << "\tClass:\t" << std::dec << myUser->myInvData[Index].Class << "\t" << std::hex << &myUser->myInvData[Index].Class << std::endl;
+
+	std::cout << "\tHP:\t" << std::dec << myUser->myInvData[Index].Hp << "\t" << std::hex << &myUser->myInvData[Index].Hp << std::endl;
+	std::cout << "\tMP:\t" << std::dec << myUser->myInvData[Index].Mp << "\t" << std::hex << &myUser->myInvData[Index].Mp << std::endl;
+
+	std::cout << "\tPos:\t" << std::dec << myUser->myInvData[Index].ArmPos << "\t" << std::hex << &myUser->myInvData[Index].ArmPos << std::endl;
+	std::cout << "\tUpgradeLvl:\t" << std::dec << myUser->myInvData[Index].UpgradeLvl << "\t" << std::hex << &myUser->myInvData[Index].UpgradeLvl << std::endl;
+	} */
+}
+
+void BotUser::Print(LPCSTR format, ...) {
+#ifdef DBG_PRINT
+	char buffer[1024];
+
+	va_list argptr;
+
+	va_start(argptr, format);
+	wvsprintf(buffer, format, argptr);
+	va_end(argptr);
+
+	printf_s("%s\r\n", buffer); // cout << buffer << endl;
+#endif
+}
+
+void BotUser::FindNearestWP() {
+	for (int j = 0; j < 200; j++) {
+		for (size_t i = 0; i < vHuntingWP.size(); i++) {
+			if (this->GetCellRange(vHuntingWP.at(i)) <= j) {
+				cWP = i;
+				return;
+			}
+		}
+	}
+}
+
+void BotUser::HandleMoveMnt() {
+	// User is already moving... Check whether the user is in range of the CPoint in which the user is moving to or check if the user has become stuck
+	if (BotMoving) {
+		if (BotHasTarget() && !BotAttacking) {
+			// Move to target?
+		} else if (bHuntWP) {
+			if (this->GetCellRange(vHuntingWP.at(cWP)) <= 3) {
+				IncrementCWP();
+			}
+		} else if (bPathWP) {
+		} else if (cBotUser->IsCharStop()) {
+			Print("Movement has been interrupted.");
+			IncrementSC();
+		}
+	} else {
+		if (BotHasTarget() && !BotAttacking) {
+			// Move to target?
+		} else if (bHuntWP) {
+		} else if (bPathWP) {
+		}
+		// Move to next coordinate
+		//this->MoveToPoint(HuntingWaypoints.at(m_vCurrentWP));
+	}
+}
+
+void BotUser::IncrementCWP() {
+	cWP++;
+	BotMoving = FALSE;
+	if (bHuntWP) {
+		if (cWP == vHuntingWP.size()) {
+			cWP = 0;
+			//this->RandomizeWaypoints();
+		}
+	} else if (bPathWP) {
+		if (cWP == vPathWP.size()) {
+			cWP = 0;
+			bHuntWP = TRUE;
+			bPathWP = FALSE;
+		}
+	}
+}
+
+void BotUser::IncrementSC() {
+	stuckCount++;
+	BotMoving = FALSE;
+
+	if (BotHasTarget() && !BotAttacking) {
+		if (stuckCount >= 100) {
+			stuckCount = 0;
+			// Blacklist target?
+			ResetTarget();
+		}
+	} else {
+		if (stuckCount >= 100) {
+			stuckCount = 0;
+			IncrementCWP();
+		}
+	}
+}
+
+CPoint BotUser::CellToMousePos(CPoint Cell) {
+	CPoint MousePos;
+	MousePos.x = (Cell.x + 1) * 48;
+	MousePos.y = (Cell.y + 1) * 24;
+
+	CPoint mapOffSet;// = (*(DWORD *)((DWORD)hMod_Soma + 0x1350EC‏) + 0x60ec)‏;
+
+	MousePos - mapOffSet;
+
+	return MousePos;
+}
+
+void BotUser::ScreenShot() {
+
+}
+
+void BotUser::LootItem()
+{
+	// Need a way to loot items
+
+	cLootItem++;
+	if (cLootItem >= LootPoints.size())	{
+		cLootItem = 0;
+		LootPoints.clear();
+		LootRequired = FALSE;
+		showLooting = TRUE;
+	}
+}

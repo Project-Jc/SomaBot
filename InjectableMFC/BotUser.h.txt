@@ -1,0 +1,94 @@
+#pragma once
+
+#include "InjectableMFC.h"
+
+using std::cout;
+using std::endl;
+using std::string;
+using std::vector;
+
+class BotUser {
+public:
+	BotUser();
+	virtual ~BotUser();
+
+	HMODULE hMod_Soma;
+
+	// Main bot function
+	static DWORD WINAPI BotProcess(LPVOID lpParam);
+	BOOL Init();
+
+	// Main bot variables
+	BOOL BotRunning, BotAttacking, BotMoving, IntMode;
+
+	// Current bot user
+	USER *cBotUser;
+	BOOL HealthLow();
+	BOOL ManaLow();
+	BOOL HasItem(CString iName, CString HpMp);
+	BOOL UserReady();
+
+	// Variables for potion usage etc
+	int pHPThreshold, pMPThreshold;
+	BOOL PottingHP, PottingMP;
+	int pHPIndex, pMPIndex;
+
+	// PK 
+	BOOL IsBeingPKD;
+	int pkCount, pkCountLimit;
+
+	// Death 
+	BOOL AwaitingRevival;
+	int deathCount, deathCountLimit;
+	void dcIncrement();
+
+	// Warping
+	BOOL WarpEnabled, WarpRequired, WarpFinished, WarpInProcess;
+	int tpIndex;
+
+	// Looting
+	BOOL LootEnabled, LootRequired;
+	vector<CString> LootFilter;
+	vector<CPoint> LootPoints;
+	int lootCount, cLootItem;
+	void LootItem();
+
+	// Target 
+	USER *cBotTarget;
+	int BotTargetUid;
+	BOOL BotHasTarget();
+	BOOL TargetFound();
+	void ResetTarget();
+	BOOL TargetIsValid(USER *pTarget, int pRange, BOOL checkWeaken);
+	BOOL TargetDead();
+	vector<CString> TargetList;
+
+	// Waypoints & Movement
+	void IncrementSC();
+	void IncrementCWP();
+	void HandleMoveMnt();
+	void FindNearestWP();
+	vector<CPoint> vHuntingWP;
+	vector<CPoint> vPathWP;
+	BOOL bPathWP, bHuntWP;
+	int cWP, stuckCount;
+
+	// For console output
+	BOOL showHasTarget, showAttacking, showDead, showLooting;
+
+	// Maximum range to search for monsters
+	int MaxTargetSearchRange;
+
+	// Range evaluations
+	int GetCellRange(CPoint CellPos);
+	int GetCellRange(CPoint StartCellPos, CPoint FinalCellPos);
+
+	// Misc
+	CPoint CellToMousePos(CPoint Cell);
+	DWORD ResolvePointer(DWORD pAddress, int pLevels, ...);
+	void Test();
+	static void Print(LPCSTR format, ...);
+	void ScreenShot();
+
+protected:
+};

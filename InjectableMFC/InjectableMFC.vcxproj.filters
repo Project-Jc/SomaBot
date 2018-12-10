@@ -1,0 +1,174 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Hook">
+      <UniqueIdentifier>{ebb20acc-801e-4434-b152-1d7dc6638a1e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Hook">
+      <UniqueIdentifier>{57e7cd86-7e3d-4704-9766-8247abd76719}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Bot">
+      <UniqueIdentifier>{9cf68c14-53ed-4996-966c-40efd1d8a01f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Bot">
+      <UniqueIdentifier>{e78175fa-b20b-46c0-a1e3-d881a97ae3a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Game">
+      <UniqueIdentifier>{539379ea-41bf-4690-8ffc-0a6959a622dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{1fec6e46-212e-435e-a36d-4bf296c860e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sounds">
+      <UniqueIdentifier>{ce0a5f23-023b-47f3-bbfe-81d4431333f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Gui">
+      <UniqueIdentifier>{74d3e1ab-e24c-4cf6-a692-e28ce45d00ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Gui">
+      <UniqueIdentifier>{cccb142f-1363-4903-b0e2-1e84918a7ab5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dialogues">
+      <UniqueIdentifier>{0a0564c6-0836-4999-a84c-85b3a3537774}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DDrawHook.cpp">
+      <Filter>Source Files\Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="PacketParserHook.cpp">
+      <Filter>Source Files\Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="UserManagerHook.cpp">
+      <Filter>Source Files\Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="CodeCave.cpp">
+      <Filter>Source Files\Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="InjectableMFC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="UserManager.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="BotUser.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="SocketMng.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="SocketMngHook.cpp">
+      <Filter>Source Files\Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="Bot.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="Gui.cpp">
+      <Filter>Source Files\Gui</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DDrawHook.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketParserHook.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="UserManagerHook.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="CodeCave.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InjectableMFC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UserManager.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketDef.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="CUser.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="DarkDef.h">
+      <Filter>Header Files\Game</Filter>
+    </ClInclude>
+    <ClInclude Include="BotUser.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="SocketMng.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="SocketMngHook.h">
+      <Filter>Header Files\Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="Bot.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Gui.h">
+      <Filter>Header Files\Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="Colours.h">
+      <Filter>Header Files\Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="Misc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="InjectableMFC.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="..\..\..\..\..\..\..\Myth of Soma\DbSounds\Dead.wav">
+      <Filter>Sounds</Filter>
+    </Media>
+    <Media Include="..\..\..\..\..\..\..\Myth of Soma\DbSounds\Error.wav">
+      <Filter>Sounds</Filter>
+    </Media>
+    <Media Include="..\..\..\..\..\..\..\Myth of Soma\DbSounds\PkDetect.wav">
+      <Filter>Sounds</Filter>
+    </Media>
+    <Media Include="..\..\..\..\..\..\..\Myth of Soma\DbSounds\NearbyUser.wav">
+      <Filter>Sounds</Filter>
+    </Media>
+    <Media Include="..\..\..\..\..\..\..\Myth of Soma\DbSounds\PmReceived.wav">
+      <Filter>Sounds</Filter>
+    </Media>
+    <Media Include="..\..\..\..\..\..\..\Myth of Soma\DbSounds\StatGain.wav">
+      <Filter>Sounds</Filter>
+    </Media>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\Dlg Editor\Soma Dlg%27s\Bmp\DaburaInfoBox.bmp">
+      <Filter>Dialogues</Filter>
+    </Image>
+    <Image Include="..\..\..\dlg editor\soma dlg%27s\bmp\bitmap4.bmp" />
+  </ItemGroup>
+</Project>
